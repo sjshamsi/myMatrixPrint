@@ -4,134 +4,103 @@
 #include <iomanip>
 #include <vector>
 #include <string>
-#include <type_traits>
+#include <sstream>
 #include <cmath>
-#include <limits>
+#include <algorithm>
+#include <type_traits>
 
-inline constexpr size_t DEFAULT_WIDTH{0};
 inline constexpr int DEFAULT_PRECISION{3};
 
 
 template <typename T>
-size_t optimal_width(T value, int precision = DEFAULT_PRECISION) {
-  size_t opt_width{2};
-  size_t n = value < 0 ? static_cast<unsigned long long>(-value) : static_cast<unsigned long long>(value);
+int get_number_width(T value, int precision = DEFAULT_PRECISION) {
+  static_assert(std::is_arithmetic_v<T>, "Type must be numeric.");
+  if constexpr (std::is_integral_v<T>) precision = 0;
 
-  if (value == 0) {
-    opt_width++;
+  int width{0};
+  if (value < 0) width++;
 
-  } else {
-    while (n > 0) {
-      n /= 10;
-      opt_width++;
-    }
-  }
-
-  if constexpr(std::is_integral_v<T>) return opt_width;
-  else if (precision == 0) return opt_width;
-  else return opt_width + precision + 1;
+  auto absval = std::abs(value);
+  int int_part = (absval <= 1) ? 1 : static_cast<int>(std::log10(absval) + 1);
+  width += int_part;
+  
+  if (precision > 0) width += precision + 1;
+  return width;
 }
 
 
-std::string get_rowseparator(size_t ncols, size_t width) {
-  std::string row_seperator = "+";
-  // Build a row separator like +----------+----------+...
-  for (size_t j = 0; j < ncols; j++) row_seperator += std::string(width, '-') + "+";
+template <typename T>
+int optimal_width(const std::vector<T> &vec, int precision = DEFAULT_PRECISION) {
+  int width_min, width_max;
 
-  return "\n" + row_seperator + "\n";
+  if (vec.empty()) return 0;
+  auto [min_it, max_it] = std::minmax_element(vec.begin(), vec.end());
+
+  width_min = get_number_width(*min_it, precision);
+  width_max = get_number_width(*max_it, precision);
+
+  return std::max(width_max, width_min);
 }
+
 
 template<typename T>
-std::string formatCell(T value, size_t width, int precision) {
+std::ostream & print_boxed_2D(const std::vector<T> &M,
+                              size_t nrows, size_t ncols,
+                              std::ostream &os = std::cout, bool print_final_rsep = true,
+                              int width = -1, int precision = DEFAULT_PRECISION,
+                              int r0 = -1, int rf = -1, int c0 = -1, int cf = -1) {
+  int npads{};
   std::ostringstream oss;
-  if constexpr (std::is_floating_point_v<T>) {
-    oss << std::fixed << std::setprecision(precision) << value;
-  } else {
-    oss << value;
-  }
-
-  std::string str = oss.str();
-
-  if (width < str.size()) return str;  // too long for the box
-    
-  size_t pad = width - str.size();
-  size_t left = pad / 2;
-  size_t right = pad - left;
-
-  return std::string(left, ' ') + str + std::string(right, ' ');
-}
-
-template<typename T>
-void print2term(const std::vector<T> &M, size_t nrows, size_t ncols, std::ostream &os = std::cout,
-  bool print_final_rsep = true, size_t width = DEFAULT_WIDTH, int precision = DEFAULT_PRECISION) {
   
-  if (width == DEFAULT_WIDTH) {
-    T max_val = *std::max_element(M.begin(), M.end());
-    width = optimal_width(max_val, precision);
-  }
+  if (width < 0) width = 2 + optimal_width(M, precision);
+  if (r0 < 0) r0 = 0;
+  if (rf < 0) rf = nrows;
+  if (c0 < 0) c0 = 0;
+  if (cf < 0) cf = ncols;
   
-  std::string row_seperator = get_rowseparator(ncols, width);
+  std::string row_seperator = "+";
+  for (int j = 0; j < cf - c0; j++) row_seperator += std::string(width, '-') + "+";
 
-  for (size_t i = 0; i < nrows; i++) {
-    os << row_seperator;
 
-    for (size_t j = 0; j < ncols; j++) {
-      os << "|";
-      os << formatCell(M[i * ncols + j], width, precision);
+  for (int r = r0; r < rf; r++) {
+    os << row_seperator << "\n";
+
+    for (int c = c0; c < cf; c++) {
+      if constexpr (std::is_floating_point_v<T>) oss << std::fixed << std::setprecision(precision);
+      oss << M[r * ncols + c];
+      npads = width - oss.tellp();
+
+      os << "|" << std::string(npads / 2, ' ') << oss.str() << std::string(npads - (npads / 2), ' ');
+      oss.str(""); oss.clear();
     }
-    os << "|";
+    os << "|" << "\n";
   }
-  if (print_final_rsep) os << row_seperator;
+
+  if (print_final_rsep) os << row_seperator << "\n";
+  return os;
 }
 
 
 template<typename T>
-void print_corner(const std::vector<T> &M, size_t nrows, size_t ncols, size_t cornersize = 4, std::ostream &os = std::cout,
-  bool print_final_rsep = true, size_t width = DEFAULT_WIDTH, int precision = DEFAULT_PRECISION) {
-    std::size_t nrows_small = std::min(cornersize, nrows);
-    std::size_t ncols_small = nrows > 0 ? std::min(cornersize, ncols) : 0;
+std::ostream & print_2D(const std::vector<T> &M,
+                        size_t nrows, size_t ncols,
+                        std::ostream &os = std::cout, std::string_view delim = ",",
+                        int width = -1, int precision = DEFAULT_PRECISION,
+                        int r0 = -1, int rf = -1, int c0 = -1, int cf = -1) {
 
-    if (width == DEFAULT_WIDTH) {
-      T max_val = *std::max_element(M.begin(), M.end());
-      width = optimal_width(max_val, precision);
+  if (width < 0) width = 1 + optimal_width(M, precision);
+  if (r0 < 0) r0 = 0;
+  if (rf < 0) rf = nrows;
+  if (c0 < 0) c0 = 0;
+  if (cf < 0) cf = ncols;
+
+  for (int r = r0; r < rf; r++) {
+    for (int c = c0; c < cf; c++) {
+      os << std::right << std::setw(width);
+      if constexpr (std::is_floating_point_v<T>) os << std::fixed << std::setprecision(precision);
+      os << M[r * ncols + c] << delim;
     }
-    
-    std::string row_seperator = get_rowseparator(ncols_small, width);
-    
-    for (size_t i = 0; i < nrows_small; i++) {
-      os << row_seperator;
-
-      for (size_t j = 0; j < ncols_small; j++) {
-        os << "|";
-        os << formatCell(M[i * ncols_small + j], width, precision);
-      }
-      os << "|";
-    }
-    if (print_final_rsep) os << row_seperator;
-}
-
-
-template<typename T>
-void print2file(const std::vector<T> &M, size_t nrows, size_t ncols, std::ostream &os = std::cout,
-  int precision = DEFAULT_PRECISION, std::string delim = ", ") {
-  for (size_t i = 0; i < nrows; i++) {
     os << "\n";
-    for (size_t j = 0; j < ncols; j++) {
-      os << std::fixed << std::setprecision(precision) << M[i * ncols + j] << delim;
-    }
   }
+  return os;
 }
-
-/* TEST FOR FUNCTIONS
-
-int main() {
-    std::vector<double> mat = { 3.14159, 2.71828, 1.41421, 0.57721, -1.0, 42.0};
-    print2DMatrix<double>(mat, size_t{3}, size_t{2});
-
-    // std::vector<int> mat = { 3, 2, 1, 0, -1, 42};
-    // print2DMatrix<int>(mat, size_t{3}, size_t{2}, 10, 2);
-
-    return 0;
-}
-
-*/
