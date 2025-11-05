@@ -1,8 +1,0 @@
-[
-{
-  "directory": "/home/sshamsi/Projects/myMatrixPrint/build",
-  "command": "/usr/bin/g++ -I/home/sshamsi/Projects/myMatrixPrint/include -g -std=c++20 -o CMakeFiles/Print2DMatrix.dir/src/Print2DMatrix.cpp.o -c /home/sshamsi/Projects/myMatrixPrint/src/Print2DMatrix.cpp",
-  "file": "/home/sshamsi/Projects/myMatrixPrint/src/Print2DMatrix.cpp",
-  "output": "CMakeFiles/Print2DMatrix.dir/src/Print2DMatrix.cpp.o"
-}
-]
