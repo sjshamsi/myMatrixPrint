@@ -9,7 +9,10 @@
 #include <algorithm>
 #include <type_traits>
 
-inline constexpr int DEFAULT_PRECISION{3};
+namespace MatrixPrint
+{
+
+constexpr int DEFAULT_PRECISION{3};
 
 
 template <typename T>
@@ -103,4 +106,6 @@ std::ostream & print_2D(const std::vector<T> &M,
     os << "\n";
   }
   return os;
+}
+
 }
