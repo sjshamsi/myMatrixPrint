@@ -7,7 +7,7 @@ int main() {
     std::cout << "\nBoxed, double matrix:\n";
     MatrixPrint::print_boxed_2D(mat1, size_t{3}, size_t{2});
     std::cout << "\nRegular, double matrix:\n";
-    MatrixPrint::print_2D(mat1, size_t{3}, size_t{2}, std::cout, ",", -1, 3, -1, -1, -1, -1, 2, 2);
+    MatrixPrint::print_2D(mat1, size_t{3}, size_t{2});
     std::cout << "\nBoxed, double matrix:\n";
     MatrixPrint::print_2D(mat2, size_t{3}, size_t{2});
 
