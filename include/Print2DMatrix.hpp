@@ -15,6 +15,16 @@ namespace MatrixPrint
 constexpr int DEFAULT_PRECISION{3};
 
 
+static int asINT(size_t v) {
+  if (v > static_cast<size_t>(std::numeric_limits<int>::max())) {
+    std::cerr << "Error: size_t value " << v << " exceeds the maximum value of int ("
+              << std::numeric_limits<int>::max() << ")." << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+  }
+  return static_cast<int>(v);
+}
+
+
 template <typename T>
 int get_number_width(T value, int precision = DEFAULT_PRECISION) {
   static_assert(std::is_arithmetic_v<T>, "Type must be numeric.");
@@ -57,9 +67,9 @@ std::ostream & print_boxed_2D(const std::vector<T> &M,
   
   if (width < 0) width = 2 + optimal_width(M, precision);
   if (r0 < 0) r0 = 0;
-  if (rf < 0) rf = nrows;
+  if (rf < 0) rf = asINT(nrows);
   if (c0 < 0) c0 = 0;
-  if (cf < 0) cf = ncols;
+  if (cf < 0) cf = asINT(ncols);
   
   std::string row_seperator = "+";
   for (int j = 0; j < cf - c0; j++) row_seperator += std::string(width, '-') + "+";
@@ -71,7 +81,7 @@ std::ostream & print_boxed_2D(const std::vector<T> &M,
     for (int c = c0; c < cf; c++) {
       if constexpr (std::is_floating_point_v<T>) oss << std::fixed << std::setprecision(precision);
       oss << M[r * ncols + c];
-      npads = width - oss.tellp();
+      npads = asINT(width - oss.tellp());
 
       os << "|" << std::string(npads / 2, ' ') << oss.str() << std::string(npads - (npads / 2), ' ');
       oss.str(""); oss.clear();
