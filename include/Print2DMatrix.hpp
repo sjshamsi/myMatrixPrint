@@ -18,24 +18,6 @@ constexpr int DEFAULT_WIDTH{-1}, DEFAULT_PRECISION{3};
 constexpr size_t DEFAULT_POS_VALUE = std::numeric_limits<size_t>::max();
 
 
-static int asINT(const size_t v) {
-  if (v > static_cast<size_t>(std::numeric_limits<int>::max())) {
-    std::cerr << "Error: size_t value " << v << " exceeds the maximum value of int ("
-              << std::numeric_limits<int>::max() << ")." << std::endl;
-    std::exit(EXIT_FAILURE);
-  }
-  return static_cast<int>(v);
-}
-
-static size_t asST(const int v) {
-  if (v < 0) {
-    std::cerr << "Error: int value " << v << " is negative and cannot be converted to size_t!";
-    std::exit(EXIT_FAILURE);
-  }
-  return static_cast<size_t>(v);
-}
-
-
 template <typename T>
 int get_number_width(const T value, const int precision = DEFAULT_PRECISION) {
   static_assert(std::is_arithmetic_v<T>, "Type must be numeric.");
@@ -89,12 +71,12 @@ std::ostream & print_boxed_2D(const std::vector<T> &M,
 
   size_t padding;
   std::string row_seperator = "+";
-  for (int j = 0; j < cf - c0; j++) row_seperator += std::string(width, '-') + "+";
+  for (size_t j = 0; j < cf - c0; j++) row_seperator += std::string(width, '-') + "+";
 
-  for (int r = r0; r < rf; r++) {
+  for (size_t r = r0; r < rf; r++) {
     os << row_seperator << "\n";
 
-    for (int c = c0; c < cf; c++) {
+    for (size_t c = c0; c < cf; c++) {
       if constexpr (std::is_floating_point_v<T>) oss << std::fixed << std::setprecision(precision);
       oss << M[r * ncols + c];
       padding = (width >= oss.tellp()) ? width - oss.tellp() : size_t{};
@@ -125,8 +107,8 @@ std::ostream & print_2D(const std::vector<T> &M,
   cf = (cf == DEFAULT_POS_VALUE) ? ncols : cf;
   assert((rf >= r0) && (rf - r0 <= nrows) && (cf >= c0) && (cf - c0 <= ncols));
 
-  for (int r = r0; r < rf; r++) {
-    for (int c = c0; c < cf; c++) {
+  for (size_t r = r0; r < rf; r++) {
+    for (size_t c = c0; c < cf; c++) {
       os << std::right << std::setw(width);
       if constexpr (std::is_floating_point_v<T>) os << std::fixed << std::setprecision(precision);
       os << M[r * ncols + c] << delim;
