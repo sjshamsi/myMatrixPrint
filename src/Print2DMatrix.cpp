@@ -5,11 +5,11 @@ int main() {
     std::vector<int> mat2 = { 3, 2, 1, 0, -1, 42};
 
     std::cout << "\nBoxed, double matrix:\n";
-    MatrixPrint::print_boxed_2D(mat1, size_t{3}, size_t{2});
+    MatrixPrint::print_boxed_2D(mat1, 3, 2, std::cout, true, MatrixPrint::DEFAULT_WIDTH, MatrixPrint::DEFAULT_PRECISION, 1,2,1,2);
     std::cout << "\nRegular, double matrix:\n";
-    MatrixPrint::print_2D(mat1, size_t{3}, size_t{2});
+    MatrixPrint::print_2D(mat1, 3, 2);
     std::cout << "\nBoxed, double matrix:\n";
-    MatrixPrint::print_2D(mat2, size_t{3}, size_t{2});
+    MatrixPrint::print_2D(mat2, 3, 2);
 
     return 0;
 }

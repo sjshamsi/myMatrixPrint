@@ -6,30 +6,40 @@
 #include <string>
 #include <sstream>
 #include <cmath>
+#include <cassert>
 #include <algorithm>
 #include <type_traits>
 
 namespace MatrixPrint
 {
 
-constexpr int DEFAULT_PRECISION{3};
+
+constexpr int DEFAULT_WIDTH{-1}, DEFAULT_PRECISION{3};
+constexpr size_t DEFAULT_POS_VALUE = std::numeric_limits<size_t>::max();
 
 
-static int asINT(size_t v) {
+static int asINT(const size_t v) {
   if (v > static_cast<size_t>(std::numeric_limits<int>::max())) {
     std::cerr << "Error: size_t value " << v << " exceeds the maximum value of int ("
               << std::numeric_limits<int>::max() << ")." << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);
+    std::exit(EXIT_FAILURE);
   }
   return static_cast<int>(v);
 }
 
+static size_t asST(const int v) {
+  if (v < 0) {
+    std::cerr << "Error: int value " << v << " is negative and cannot be converted to size_t!";
+    std::exit(EXIT_FAILURE);
+  }
+  return static_cast<size_t>(v);
+}
+
 
 template <typename T>
-int get_number_width(T value, int precision = DEFAULT_PRECISION) {
+int get_number_width(const T value, const int precision = DEFAULT_PRECISION) {
   static_assert(std::is_arithmetic_v<T>, "Type must be numeric.");
-  if constexpr (std::is_integral_v<T>) precision = 0;
-
+  
   int width{0};
   if (value < 0) width++;
 
@@ -37,13 +47,18 @@ int get_number_width(T value, int precision = DEFAULT_PRECISION) {
   int int_part = (absval <= 1) ? 1 : static_cast<int>(std::log10(absval) + 1);
   width += int_part;
   
-  if (precision > 0) width += precision + 1;
+  if constexpr (std::is_floating_point_v<T>) {
+    if (precision > 0) {
+      width += precision + 1;
+    }
+  }
+
   return width;
 }
 
 
 template <typename T>
-int optimal_width(const std::vector<T> &vec, int precision = DEFAULT_PRECISION) {
+int optimal_width(const std::vector<T> &vec, const int precision = DEFAULT_PRECISION) {
   int width_min, width_max;
 
   if (vec.empty()) return 0;
@@ -58,22 +73,23 @@ int optimal_width(const std::vector<T> &vec, int precision = DEFAULT_PRECISION) 
 
 template<typename T>
 std::ostream & print_boxed_2D(const std::vector<T> &M,
-                              size_t nrows, size_t ncols,
-                              std::ostream &os = std::cout, bool print_final_rsep = true,
-                              int width = -1, int precision = DEFAULT_PRECISION,
-                              int r0 = -1, int rf = -1, int c0 = -1, int cf = -1) {
-  int npads{};
+                              const size_t nrows, const size_t ncols,
+                              std::ostream &os = std::cout, const bool print_final_rsep = true,
+                              int width = DEFAULT_WIDTH, int precision = DEFAULT_PRECISION,
+                              size_t r0 = DEFAULT_POS_VALUE, size_t rf = DEFAULT_POS_VALUE,
+                              size_t c0 = DEFAULT_POS_VALUE, size_t cf = DEFAULT_POS_VALUE) {
   std::ostringstream oss;
-  
-  if (width < 0) width = 2 + optimal_width(M, precision);
-  if (r0 < 0) r0 = 0;
-  if (rf < 0) rf = asINT(nrows);
-  if (c0 < 0) c0 = 0;
-  if (cf < 0) cf = asINT(ncols);
-  
+
+  width = (width == DEFAULT_WIDTH) ? 2 + optimal_width(M, precision) : width;
+  r0 = (r0 == DEFAULT_POS_VALUE) ? size_t{} : r0;
+  rf = (rf == DEFAULT_POS_VALUE) ? nrows : rf;
+  c0 = (c0 == DEFAULT_POS_VALUE) ? size_t{} : c0;
+  cf = (cf == DEFAULT_POS_VALUE) ? ncols : cf;
+  assert((rf >= r0) && (rf - r0 <= nrows) && (cf >= c0) && (cf - c0 <= ncols));
+
+  size_t padding;
   std::string row_seperator = "+";
   for (int j = 0; j < cf - c0; j++) row_seperator += std::string(width, '-') + "+";
-
 
   for (int r = r0; r < rf; r++) {
     os << row_seperator << "\n";
@@ -81,9 +97,9 @@ std::ostream & print_boxed_2D(const std::vector<T> &M,
     for (int c = c0; c < cf; c++) {
       if constexpr (std::is_floating_point_v<T>) oss << std::fixed << std::setprecision(precision);
       oss << M[r * ncols + c];
-      npads = asINT(width - oss.tellp());
+      padding = (width >= oss.tellp()) ? width - oss.tellp() : size_t{};
 
-      os << "|" << std::string(npads / 2, ' ') << oss.str() << std::string(npads - (npads / 2), ' ');
+      os << "|" << std::string(padding / 2, ' ') << oss.str() << std::string(padding - (padding / 2), ' ');
       oss.str(""); oss.clear();
     }
     os << "|" << "\n";
@@ -96,16 +112,18 @@ std::ostream & print_boxed_2D(const std::vector<T> &M,
 
 template<typename T>
 std::ostream & print_2D(const std::vector<T> &M,
-                        size_t nrows, size_t ncols,
+                        const size_t nrows, const size_t ncols,
                         std::ostream &os = std::cout, std::string_view delim = ",",
-                        int width = -1, int precision = DEFAULT_PRECISION,
-                        int r0 = -1, int rf = -1, int c0 = -1, int cf = -1) {
+                        int width = DEFAULT_WIDTH, int precision = DEFAULT_PRECISION,
+                        size_t r0 = DEFAULT_POS_VALUE, size_t rf = DEFAULT_POS_VALUE,
+                        size_t c0 = DEFAULT_POS_VALUE, size_t cf = DEFAULT_POS_VALUE) {
 
-  if (width < 0) width = 1 + optimal_width(M, precision);
-  if (r0 < 0) r0 = 0;
-  if (rf < 0) rf = nrows;
-  if (c0 < 0) c0 = 0;
-  if (cf < 0) cf = ncols;
+  width = (width == DEFAULT_WIDTH) ? 1 + optimal_width(M, precision) : width;
+  r0 = (r0 == DEFAULT_POS_VALUE) ? size_t{} : r0;
+  rf = (rf == DEFAULT_POS_VALUE) ? nrows : rf;
+  c0 = (c0 == DEFAULT_POS_VALUE) ? size_t{} : c0;
+  cf = (cf == DEFAULT_POS_VALUE) ? ncols : cf;
+  assert((rf >= r0) && (rf - r0 <= nrows) && (cf >= c0) && (cf - c0 <= ncols));
 
   for (int r = r0; r < rf; r++) {
     for (int c = c0; c < cf; c++) {
